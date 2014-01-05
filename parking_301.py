@@ -2,20 +2,18 @@
 
 import open311SNSL
 import json
-
+import private_301
 
 """
 Script calls NYC 301 API and outputs json file with current 
 parking information in html format.
 
-
 """
 
 def get_301_info(service_id):
-	API_id        = 'c7cf0d5b'
-	API_key       = '837d0a2e46583a1e1522e73d173bbd03'
-	serviceObject = open311SNSL.service(API_id, API_key, service_id)
-	serviceInfo   = serviceObject.getService(serviceObject.json) 
+	API_id, API_key = private_301.get_301_API_key()
+	serviceObject   = open311SNSL.service(API_id, API_key, service_id)
+	serviceInfo     = serviceObject.getService(serviceObject.json) 
 	return serviceInfo.json()
 
 def get_parking_status():
@@ -33,6 +31,9 @@ def write_parking_status_json():
 	# write description to json file
 	with open(out_file, 'wb') as f_out:
 		f_out.write(json.dumps(parking_html)+'\n')
+
+
+
 
 
 
