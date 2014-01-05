@@ -1,4 +1,6 @@
+
 private_301.py
+*.out
 
 *.py[cod]
 
