@@ -8,6 +8,7 @@ import json
 Script calls NYC 301 API and outputs json file with current 
 parking information in html format.
 
+
 """
 
 def get_301_info(service_id):
