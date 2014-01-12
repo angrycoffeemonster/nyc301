@@ -1,0 +1,174 @@
+<html>
+
+<head>
+<!-- set the website up as a mobile friendly app -->
+<!-- stop page scaling -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<!-- remove the browser ui when it's placed on the home screen -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link href='http://fonts.googleapis.com/css?family=Lato:100' rel='stylesheet' type='text/css'>
+<link href='http://fonts.googleapis.com/css?family=Lato:300' rel='stylesheet' type='text/css'>
+<link href='http://fonts.googleapis.com/css?family=Lato:400' rel='stylesheet' type='text/css'>
+<LINK REL=StyleSheet HREF="static/style.css" TYPE="text/css" MEDIA=screen>
+
+</head>
+
+<body onload="getLatest();initLoc();">
+
+<!--<h4>{{header}}</h4>-->
+	
+<div id="question">Is ASP In Effect Today?</div>	
+<div id="short_answer">?</div>	
+<div id="answer"></div>	
+	
+<div id="nearby" onclick="getNearbyRoads()">Find<br/> Parking</div>
+
+<div id="results">
+</div>
+
+<script type="text/javascript">
+var weekday=new Array(7);
+weekday[0]="Sun";
+weekday[1]="Mon";
+weekday[2]="Tues";
+weekday[3]="Wed";
+weekday[4]="Thurs";
+weekday[5]="Fri";
+weekday[6]="Sat";
+
+var days=new Array(7);
+days[0]="Sunday";
+days[1]="Monday";
+days[2]="Tuesday";
+days[3]="Wednesday";
+days[4]="Thursday";
+days[5]="Friday";
+days[6]="Saturday";
+
+var months=new Array(12);
+months[0]="January";
+months[1]="February";
+months[2]="March";
+months[3]="April";
+months[4]="May";
+months[5]="June";
+months[6]="July";
+months[7]="August";
+months[8]="September";
+months[9]="October";
+months[10]="November";
+months[11]="December";
+
+var now=new Date();
+
+var thisLocation=null;
+
+function initLoc(){
+	navigator.geolocation.getCurrentPosition(setLoc,noLocation,{timeout:10000});
+}
+function setLoc(position){
+	thisLocation=position;
+}
+
+function getLatest(){
+	$.getJSON( 'static/parking.json', function( result ){
+		printResult(result);
+	})
+}
+
+function printResult(result){
+	var yesterday=new Date()
+	yesterday.setDate(now.getDate()-1);
+	var tomorrow=new Date()
+	tomorrow.setDate(now.getDate()+1);
+	var yesterdayDateString=days[yesterday.getDay()]+", "+months[yesterday.getMonth()]+" "+yesterday.getDate()+", "+yesterday.getFullYear();
+	var todayDateString=days[now.getDay()]+", "+months[now.getMonth()]+" "+now.getDate()+", "+now.getFullYear();
+	var tomorrowDateString=days[tomorrow.getDay()]+", "+months[tomorrow.getMonth()]+" "+tomorrow.getDate()+", "+tomorrow.getFullYear();
+
+	var theRegs=result.split(todayDateString)[0];
+	if(theRegs.indexOf(todayDateString)==-1){
+		$("#short_answer").html("Yes");
+	}
+	else if(theRegs.indexOf('suspended')!=-1){
+		if(theRegs.indexOf(yesterdayDateString)!=-1){
+			if(theRegs.split(yesterdayDateString)[1].indexOf("suspended")==-1){
+				$("#short_answer").html("Yes");
+			}
+			else{
+				$("#short_answer").html("No");
+			}
+		}
+		else{
+			$("#short_answer").html("No");
+		}
+	}
+	else{
+		$("#short_answer").html("Yes");
+	}
+	
+	$("#answer").html(result);	
+}
+
+function getNearbyRoads(){
+	if(thisLocation==null){
+		loadLocalInfo();
+	}
+	else{
+		getRoads(thisLocation);
+	}
+}
+
+function loadLocalInfo(){
+  if (navigator.geolocation)
+    {navigator.geolocation.getCurrentPosition(getRoads,noLocation,{timeout:10000});}
+  else{
+  		alert("Geolocation is not supported by this browser.");
+  	}
+}
+function noLocation(){
+	alert("There was an error getting your location.");
+}
+function toTitleCase(str)
+{
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
+function getRoads(position){
+	console.log(position.coords);
+	var longitude=position.coords.longitude;
+	var latitude=position.coords.latitude;
+	
+	$.get("http://311asp.com/getRoads",{"lat":latitude,"long":longitude},function(dataString){
+		$("#results").html("Looking at your nearby streets");
+		var day = weekday[now.getDay()];
+
+		var data=JSON.parse(dataString);
+
+		var text="";
+		for(ix in data){
+			$("#results").empty();
+			var sign=data[ix];
+			if(sign.SIGNDESC1.indexOf(day.toUpperCase())!=-1){
+				var theClass="today";
+			}
+			else{
+				var theClass="not_today";
+			}
+			var street="<p>"+toTitleCase(sign.STREET).replace("Street","St").replace("Avenue","Av")+" between "+toTitleCase(sign.CROSSSTREET1).replace("Street","St").replace("Avenue","Av")+" and "+toTitleCase(sign.CROSSSTREET2).replace("Street","St").replace("Avenue","Av")+".<br/>";
+			var description="<span class=\""+theClass+"\">"+sign.SIDE+": "+toTitleCase(sign.SIGNDESC1).replace(" (Sanitation Broom Symbol)","").replace(/<[\-]+>/g,"").replace(toTitleCase(day),"<strong>"+toTitleCase(day)+"</strong>")+"</span>";
+			
+			if(text.indexOf(street)!=-1){
+				text=text.split(street)[0]+street+description+"<br/>"+text.split(street)[1]+"</p>";
+			}
+			else{
+				text=text+street+description+"</p>";
+			}
+			
+			$("#results").html(text);
+			window.scrollBy(0,18);
+		}
+	})
+}
+</script>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+</body>
+</html>

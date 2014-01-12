@@ -1,5 +1,8 @@
 
 private_301.py
+*private_301.py
+privateTwilio.py
+*privateTwilio.py
 *.out
 
 *.py[cod]
