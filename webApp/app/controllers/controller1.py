@@ -95,6 +95,184 @@ PARKINGSIGNS_SQL='app/parking.db'
 MAXIMUM_SIGN_DISTANCE = 0.002
 con = lite.connect(PARKINGSIGNS_SQL)
 
+
+
+
+def ParseStreetCleaningTimes(signDescParsed):
+    ogString = signDescParsed
+
+    signDescParsed = string.replace(signDescParsed,"NOON 1:3-PM","12PM-3PM")
+    signDescParsed = string.split(signDescParsed,"BOL)")
+    signDescParsed = string.split(signDescParsed[1],"<")
+    signDescParsed = string.split(signDescParsed[0],"W/")
+    signDescParsed = string.replace(signDescParsed[0].strip(),' & '," ")
+    signDescParsed = string.replace(signDescParsed,' &'," ")
+    signDescParsed = string.replace(signDescParsed,'& '," ")
+    signDescParsed = string.replace(signDescParsed,'&'," ")
+    signDescParsed = string.replace(signDescParsed,' -',"-")
+    signDescParsed = string.replace(signDescParsed,'- ',"-")
+    signDescParsed = string.replace(signDescParsed,'(MOON/STARS SYMBOLS)',"")
+    signDescParsed = string.replace(signDescParsed,'(SINGLE ARROW)',"")
+    signDescParsed = string.replace(signDescParsed,'-->',"")
+    signDescParsed = signDescParsed.strip()
+    signDescParsed = string.replace(signDescParsed,'MIDNIGHT',"12AM")
+    signDescParsed = string.replace(signDescParsed,'NOON',"12PM")
+    signDescParsed = string.replace(signDescParsed,"NO PARKING","")
+    signDescParsed = string.replace(signDescParsed,'=','-')
+    signDescParsed = string.replace(signDescParsed," TO ","-")
+    signDescParsed = signDescParsed.strip()
+    signDescParsed = string.replace(signDescParsed," TO-","-")
+    signDescParsed = string.replace(signDescParsed," F RI "," FRI ")
+    signDescParsed = string.replace(signDescParsed," TUE S "," TUES ")
+    signDescParsed = string.replace(signDescParsed," F RI"," FRI")
+    signDescParsed = string.replace(signDescParsed," PM","PM")
+    signDescParsed = string.replace(signDescParsed,"8AM 11AM","8AM-11AM")
+    signDescParsed = string.replace(signDescParsed,"THRUSDAY","THURSDAY")
+    signDescParsed = string.replace(signDescParsed,"MON THRU FRI","MON TUES WED THUR FRI")
+    signDescParsed = string.replace(signDescParsed,"MONDAY-FRIDAY","MON TUES WED THUR FRI")
+    signDescParsed = string.replace(signDescParsed,"EXCEPT SUNDAY","MON TUES WED THUR FRI SAT")
+    signDescParsed = string.replace(signDescParsed,"EXCEPT SUN","MON TUES WED THUR FRI SAT")
+
+    if signDescParsed[-1:] == '-':
+        signDescParsed=signDescParsed[0:-1]
+
+
+    return signDescParsed
+
+days = ['MON','TUE','WED','THU','FRI','SAT','SUN']
+specialWord = ['THRU','EXCEPT']
+
+def IsDay(s):
+    isday = False
+    
+    for day in days:
+        if day in s:
+            return True
+
+
+def ParseDay(s):
+    for day in days:
+        if day in s:
+            return day
+
+    return None
+
+def IsSpecialWord(s):
+    isspec = False
+    
+    for sp in specialWord:
+        if sp in s:
+            return True
+
+def IsTime(s):
+    if IsDay(s):
+        return False
+    if IsSpecialWord(s):
+        return False
+    
+    return True
+
+def ParseHour(s):
+
+
+    if s == "12PM":
+        return "12:00"
+    
+    if s == "12AM":
+        return "00:00"
+    
+    ampm = s[-2:]
+    
+    add = 0
+    if ampm == "PM" and s[:2] != "12":
+        add = 12
+
+    s = s[0:-2]
+        
+    minute = ":00"
+
+    
+    if ":" in s:
+        minute = ":30"
+        s=string.split(s,":")
+        s=s[0]
+
+    h = int(s) + add
+    
+    hour = str(h)
+    
+    if h < 10:
+        hour = "0" + str(h)
+
+    return hour + minute
+
+
+    
+    
+
+def DetermineTimes(signDescParsed):
+    times = []
+
+    if signDescParsed == '':
+        return times
+    
+    curDay = None
+    curStartTime = None
+    curEndTime = None
+
+    tokens = string.split(signDescParsed)
+    
+
+    if IsDay(tokens[0]):
+        newTokens = []
+        newTokens.append(tokens[len(tokens)-1])
+        for i in range(len(tokens)-1):
+            newTokens.append(tokens[i])
+        tokens=newTokens
+
+
+    for i in range(len(tokens)):
+        toke = tokens[i]
+        if IsTime(toke):
+            curTimes = string.split(toke,'-')
+            if curTimes[0][-2:] != 'AM' and curTimes[0][-2:] != 'PM':
+                curTimes[0] = curTimes[0] + curTimes[1][-2:]
+            if curTimes[1][-2:] != 'AM' and curTimes[1][-2:] != 'PM':
+                curTimes[1] = curTimes[1] + curTimes[0][-2:]
+
+            curStartTime = ParseHour(curTimes[0])
+            curEndTime = ParseHour(curTimes[1])
+
+            if curDay != None:
+                entry = {}
+                entry['day']=curDay
+                entry['start']=curStartTime
+                entry['end']=curEndTime
+                times.append(entry)
+
+                curStartTime = None
+                curEndTime = None
+
+        elif IsDay(toke):
+            curDay = ParseDay(toke)
+                
+            if curDay == None:
+                continue
+
+            if curStartTime!=None:
+                entry = {}
+                entry['day']=curDay
+                entry['start']=curStartTime
+                entry['end']=curEndTime
+                times.append(entry)
+                curDay=None
+
+
+    return times
+
+
+
+
 # non url apps
 def ReadFromDBToJSON(lon, lat):
     maxDist = MAXIMUM_SIGN_DISTANCE
@@ -124,11 +302,19 @@ def ReadFromDBToJSON(lon, lat):
             curEntry["CROSSSTREET2"] = sign[6]
             curEntry["SIDE"] = sign[7]
             curEntry["STREETCLEANING"] = sign[8]
-            curEntry["SIGNDESC1"] = sign[9]
+
+            curEntry["STREETCLEANINGTIMES"] = []
+
+            signDescParsed = sign[9]
+
+            if sign[8] == 1:
+                signDescParsed=ParseStreetCleaningTimes(signDescParsed)
+                curEntry["STREETCLEANINGTIMES"]=DetermineTimes(signDescParsed)
+                
+            curEntry["SIGNDESC1"] = signDescParsed
+
             retJson.append(curEntry)
 
-            #DEBUG OUTPUT
-            #print sign
 	    
     retJson_top = get_top_results(retJson, lon, lat, N=30)
             
